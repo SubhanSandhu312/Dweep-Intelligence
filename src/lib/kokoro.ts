@@ -77,6 +77,10 @@ export async function load(): Promise<Kokoro | null> {
   loading = (async () => {
     try {
       const { KokoroTTS } = await import('kokoro-js')
+      // The default runtime location is a CDN, which the page's CSP blocks.
+      // scripts/start.mjs copies the files into public/ort.
+      const { env } = await import('@huggingface/transformers')
+      env.backends.onnx.wasm!.wasmPaths = '/ort/'
       const tts = await KokoroTTS.from_pretrained(
         'onnx-community/Kokoro-82M-v1.0-ONNX',
         {

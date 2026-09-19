@@ -1,4 +1,4 @@
-import { BRIDGE_HTTP_URL } from '../config'
+import { BARGE_IN, BRIDGE_HTTP_URL } from '../config'
 import { getMic } from './audio'
 import { speakingNow, speakingSince } from './tts'
 import { startVad, type Vad } from './vad'
@@ -270,6 +270,21 @@ const OVERRIDE =
   /\b(stop|wait|jarvis|cancel|enough|quiet|hold on|shut up|never ?mind|forget it|no)\b/i
 
 /**
+ * A stop command and nothing else. The whole utterance has to be the command,
+ * so a sentence of his own that happens to contain "stop" or "no" — or the
+ * recogniser's garbled version of one — can never match it.
+ */
+const STOP_ONLY =
+  /^\W*(?:(?:hey|ok|okay)\s+)?(?:jarvis\W+)?(?:please\s+)?(?:stop|wait|cancel|enough|quiet|hold on|hang on|shut up|be quiet|never ?mind)(?:\s+(?:it|talking|please|now|jarvis))*\W*$/i
+
+/** May this transcript, heard while he is speaking, interrupt him? */
+function mayInterrupt(text: string): boolean {
+  if (BARGE_IN === 'free') return true
+  if (BARGE_IN === 'off') return false
+  return STOP_ONLY.test(text.trim())
+}
+
+/**
  * Words too common to be evidence of anything.
  *
  * This set is the difference between a usable filter and an infuriating one.
@@ -481,6 +496,15 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
       diag.heard = said
       diag.heardAt = Date.now()
 
+      // Heard while he was speaking, and the energy gate did not interrupt him:
+      // only a bare stop command may, and it is the interruption itself — not a
+      // question to answer.
+      if (mode === 'guard' && BARGE_IN !== 'free') {
+        if (mayInterrupt(said)) h.onSpeechStart()
+        else drop(`heard "${said.slice(-40)}" while he was speaking`)
+        return
+      }
+
       if (mode === 'wake') {
         if (WAKE.test(said) && Date.now() - lastWake > WAKE_DEBOUNCE) {
           lastWake = Date.now()
@@ -530,6 +554,9 @@ async function startElevenVoice(h: VoiceHandlers): Promise<Voice> {
       // because the guard threshold is high this is a real interruption rather
       // than leaked playback — so cut him off now, do not wait for the words.
       if (mode === 'guard') {
+        // Loudness alone cannot tell you from his echo on laptop speakers, so
+        // outside 'free' mode the words decide — see transcribe() below.
+        if (BARGE_IN !== 'free') return
         const since = speakingSince()
         if (since && Date.now() - since < SELF_GUARD_MS) {
           diag.selfGuarded++
@@ -724,6 +751,9 @@ function startBrowserVoice(h: VoiceHandlers): Voice {
     if (!started || (mode === 'guard' && !barged)) {
       const words = full.split(/\s+/).filter(Boolean).length
       if (mode === 'guard') {
+        // Whatever this is, it is not allowed to cut him off unless it is a
+        // stop command — see BARGE_IN in config.ts.
+        if (!mayInterrupt(full)) return
         // An override word cuts through everything below it — "stop" has to
         // work on the first syllable or it is not a stop button.
         if (!OVERRIDE.test(full)) {

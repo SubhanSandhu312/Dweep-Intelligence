@@ -27,6 +27,7 @@ import { readFile, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
 import { openRemote, proxyError, vetTarget, PROXY_UA } from './net.mjs'
 import { probeUrl, renderPage } from './page.mjs'
+import { freeVoiceEnabled, FREE_VOICE, speakFree } from './voice.mjs'
 
 const PORT = Number(process.env.JARVIS_BRIDGE_PORT ?? 8787)
 
@@ -683,8 +684,12 @@ const handleRequest = async (req, res) => {
     // without one it falls back to the browser's own recogniser and voice, so a
     // student with nothing configured still has a working assistant.
     const eleven = Boolean(elevenKey())
+    // Speech output has a free tier too (bridge/voice.mjs), so `tts` is true
+    // with or without a key; transcription still needs the ElevenLabs key.
     res.writeHead(200, { ...cors, 'content-type': 'application/json' })
-    return res.end(JSON.stringify({ ok: true, tts: eleven, stt: eleven }))
+    return res.end(
+      JSON.stringify({ ok: true, tts: eleven || freeVoiceEnabled, stt: eleven }),
+    )
   }
 
   // Serve local image files to the page. Screenshots and generated art land on
@@ -808,7 +813,7 @@ const handleRequest = async (req, res) => {
 
   if (req.method === 'POST' && req.url === '/tts') {
     const key = elevenKey()
-    if (!key) {
+    if (!key && !freeVoiceEnabled) {
       res.writeHead(503, cors)
       return res.end('no elevenlabs key')
     }
@@ -840,6 +845,23 @@ const handleRequest = async (req, res) => {
     if (!text) {
       res.writeHead(400, cors)
       return res.end('no text')
+    }
+    // No ElevenLabs key: use the free neural voice.
+    if (!key) {
+      try {
+        const audio = await speakFree(text)
+        res.writeHead(200, {
+          ...cors,
+          'content-type': 'audio/mpeg',
+          'cache-control': 'no-cache',
+        })
+        for await (const chunk of audio) res.write(chunk)
+        return res.end()
+      } catch (err) {
+        // Offline, or the service refused: the page falls back to its own voice.
+        if (!res.headersSent) res.writeHead(502, cors)
+        return res.end(String(err?.message ?? err))
+      }
     }
     try {
       const upstream = await fetch(
@@ -1002,7 +1024,13 @@ server.listen(PORT)
 
 console.log(`[jarvis] bridge listening on ws://localhost:${PORT}`)
 console.log(
-  `[jarvis] speech ${elevenKey() ? 'via ElevenLabs (key from MCP config)' : 'using browser fallback voice'}`,
+  `[jarvis] speech ${
+    elevenKey()
+      ? 'via ElevenLabs (key from MCP config)'
+      : freeVoiceEnabled
+        ? `via free neural voice (${FREE_VOICE})`
+        : 'using browser fallback voice'
+  }`,
 )
 console.log(`[jarvis] model ${MODEL} · effort ${EFFORT}`)
 console.log(

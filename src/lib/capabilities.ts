@@ -71,7 +71,7 @@ export async function probeCapabilities(): Promise<Capabilities> {
 export function engineLabel(): string {
   const c = current
   if (c.stt && c.tts) return 'ElevenLabs'
-  if (c.tts) return 'ElevenLabs voice'
+  if (c.tts) return 'bridge voice'
   // env.elevenKey is only meaningful in direct mode; harmless to mention.
   if (env.elevenKey && BACKEND !== 'bridge') return 'ElevenLabs (direct)'
   return 'browser speech'

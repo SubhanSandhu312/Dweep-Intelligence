@@ -44,6 +44,28 @@ function vendorWasm() {
   }
 }
 
+/**
+ * Same problem, same fix, for the Kokoro voice. transformers.js loads its ONNX
+ * runtime (a .mjs loader plus a 21 MB .wasm) from cdn.jsdelivr.net by default,
+ * which the CSP blocks — and the symptom is Kokoro quietly never starting and
+ * JARVIS falling back to the robotic system voice. kokoro.ts points the runtime
+ * at /ort/, so the two files have to be served from there.
+ */
+function vendorOrt() {
+  const from = 'node_modules/@huggingface/transformers/dist'
+  const to = 'public/ort'
+  const files = ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']
+  if (!existsSync(from)) return // Kokoro is optional; the system voice still works
+  if (files.every((f) => existsSync(`${to}/${f}`))) return
+  try {
+    mkdirSync(to, { recursive: true })
+    for (const f of files) cpSync(`${from}/${f}`, `${to}/${f}`)
+    console.log('  vendored the Kokoro voice runtime into public/ort.')
+  } catch (err) {
+    console.warn(`  could not vendor the Kokoro voice runtime: ${err.message}`)
+  }
+}
+
 const writes = process.argv.includes('--writes')
 
 // A dim label per process, so the interleaved logs stay readable.
@@ -112,6 +134,7 @@ if (port) {
 }
 
 vendorWasm()
+vendorOrt()
 
 console.log('\nJ.A.R.V.I.S. starting — the brain and the face.\n')
 run('bridge', 'node', ['bridge/server.mjs'], '36', bridgeEnv)

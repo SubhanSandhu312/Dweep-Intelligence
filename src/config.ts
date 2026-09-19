@@ -128,6 +128,27 @@ export const KOKORO_VOICE = choice(
   'bm_george',
 )
 
+/**
+ * What is allowed to interrupt JARVIS while he is speaking.
+ *
+ *   'stop' (default) — only a short, standalone stop command: "stop", "wait",
+ *     "cancel", "Jarvis, enough". Laptop speakers put his own voice back into
+ *     the microphone, the recogniser mishears it, and the mishearing looked
+ *     like you talking over him — which cut him off mid-sentence. A bare stop
+ *     command cannot be produced by accident from his own sentences.
+ *
+ *   'free' — anything you say interrupts him, as originally designed. Good with
+ *     headphones; on speakers it can clip his answers.
+ *
+ *   'off' — nothing interrupts him by voice. Escape still stands him down.
+ */
+export const BARGE_IN: 'stop' | 'free' | 'off' = choice(
+  'VITE_BARGE_IN',
+  import.meta.env.VITE_BARGE_IN,
+  ['stop', 'free', 'off'] as const,
+  'stop',
+)
+
 export const env = {
   anthropicKey: str(import.meta.env.VITE_ANTHROPIC_API_KEY) ?? '',
   elevenKey: str(import.meta.env.VITE_ELEVENLABS_API_KEY) ?? '',

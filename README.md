@@ -232,6 +232,7 @@ Everything is optional in bridge mode. Frontend settings live in `.env.local`
 | `JARVIS_ALLOW_NO_ORIGIN` | off | Accept connections with no `Origin` header |
 | `JARVIS_FILE_ROOTS` | — | Roots the `/file` endpoint may serve from |
 | `JARVIS_VOICE_ID` | — | ElevenLabs voice id |
+| `JARVIS_FREE_VOICE` | `en-GB-RyanNeural` | Free Microsoft neural voice used when there is no ElevenLabs key (`bridge/voice.mjs`). Any Edge voice name works, e.g. `en-GB-ThomasNeural`, `en-US-GuyNeural`. `off` disables it. Sentence text is sent to Microsoft. |
 | `ELEVENLABS_API_KEY` | — | Optional; enables the ElevenLabs voice + Scribe |
 
 ### Frontend (`.env.local`)
