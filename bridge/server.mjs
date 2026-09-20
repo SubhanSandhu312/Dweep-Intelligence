@@ -100,10 +100,11 @@ function originAllowed(origin) {
 const ALLOW_WRITES = process.env.JARVIS_ALLOW_WRITES === '1'
 
 /**
- * The orchestrator model. Override with JARVIS_MODEL to trade quality for pace
- * — claude-sonnet-5 is noticeably snappier on camera if Opus feels slow.
+ * The orchestrator model. Sonnet is the default: it is noticeably snappier on
+ * camera than Opus. Override with JARVIS_MODEL (e.g. claude-opus-5) when
+ * quality matters more than pace.
  */
-const MODEL = process.env.JARVIS_MODEL ?? 'claude-opus-5'
+const MODEL = process.env.JARVIS_MODEL ?? 'claude-sonnet-5'
 
 /**
  * How hard the model thinks before answering.
@@ -120,7 +121,7 @@ const MODEL = process.env.JARVIS_MODEL ?? 'claude-opus-5'
  * matters more than pace; drop back to 'low' when filming and every second of
  * dead air shows.
  */
-const EFFORT = process.env.JARVIS_EFFORT ?? 'high'
+const EFFORT = process.env.JARVIS_EFFORT ?? 'medium'
 
 /**
  * Both spellings of every renamed built-in are listed on purpose. The SDK
@@ -360,7 +361,7 @@ The blades — the ONLY surface:
   place rather than summarised away.
 - A browser tab is NOT a way of showing something. If you used the browser to
   reach a page, bring it back: open it as a blade, or take a screenshot and put
-  that on a blade. The user is looking at this interface, not at Chrome.
+  that on a blade. The user is looking at this interface, not at Edge.
 - Use \`probe_url\` when you are not certain what a URL is. Never decide from the
   file extension: image CDNs serve pictures from URLs with no extension, and a
   link that looks like a video is usually a page about one. Guessing wrong puts
@@ -386,14 +387,16 @@ The interface itself:
 
 Their browser — ALWAYS the \`chrome_*\` tools, first, for anything to do with a
 browser or a web page:
-- The \`chrome_*\` tools drive the user's own Chrome. It is already signed in to
+- The \`chrome_*\` tools drive the user's own Microsoft Edge (the tool names say
+  "chrome" for historical reasons; the browser is Edge, so call it Edge, never
+  Chrome, when you speak). It is already signed in to
   everything they use, it carries their real cookies, and it does not read as
   automation to the sites it visits.
 - This is the FIRST thing you reach for on any browsing task: opening a page,
   reading one, searching a site, checking mail, a dashboard, a profile, an
   account, anything behind a login. Do not weigh it up against the
   alternatives — start here.
-- But Chrome is your HANDS, not your display. Use it to reach and read things;
+- But Edge is your HANDS, not your display. Use it to reach and read things;
   then show what you found on a blade. Leaving the answer in a browser tab is
   not showing it — they are looking at this interface.
 - NEVER use playwright, puppeteer, or any other browser automation server for
@@ -1045,7 +1048,7 @@ void chromeAvailable().then((ok) => {
   console.log(
     ok
       ? `[jarvis] browser control ready${ALLOW_WRITES ? '' : ' (reading only — clicking and typing need JARVIS_ALLOW_WRITES=1)'}`
-      : '[jarvis] browser control unavailable — open Chrome with the Claude extension enabled',
+      : '[jarvis] browser control unavailable — open Microsoft Edge with the Claude extension enabled',
   )
 })
 
@@ -1236,7 +1239,7 @@ wss.on('connection', (socket) => {
         // one server; the underscore in it is why decideTool and announceTool
         // both name `jarvis_ui` explicitly.
         jarvis_ui: uiServer((op, args) => send({ type: 'ui', op, args })),
-        // The user's own Chrome, over the extension's native-host socket. It
+        // The user's own Edge, over the extension's native-host socket. It
         // holds no per-connection state, but it is built here with the rest so
         // the write gate is read once, at the same point as everything else.
         jarvis_chrome: chromeServer({ allowWrites: ALLOW_WRITES }),

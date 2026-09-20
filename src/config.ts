@@ -157,16 +157,18 @@ export const env = {
   porcupineKey: str(import.meta.env.VITE_PICOVOICE_ACCESS_KEY) ?? '',
 }
 
-/** `claude-opus-5` is the strongest model; `claude-sonnet-5` trades a little
- *  quality for lower latency if you find responses feel slow on camera. */
-export const MODEL = 'claude-opus-5'
+/** `claude-sonnet-5` is the default: lower latency, which is what a voice
+ *  assistant on camera needs. `claude-opus-5` is the stronger model if you
+ *  would rather have quality than pace. */
+export const MODEL = 'claude-sonnet-5'
 
 /**
- * Fast mode runs the same Opus 5 at up to 2.5x output speed. It is a research
- * preview on the Claude API and costs $10/$50 per Mtok instead of $5/$25.
- * For a recorded demo the snappiness is worth it; flip to false to save money.
+ * Fast mode is an Opus-only research preview (up to 2.5x output speed, $10/$50
+ * per Mtok instead of $5/$25). It must stay off while MODEL is Sonnet, or the
+ * request carries a speed parameter the model does not accept. If you switch
+ * MODEL back to `claude-opus-5`, this can be turned on again.
  */
-export const FAST_MODE = true
+export const FAST_MODE = false
 
 /**
  * Wake-word engine.

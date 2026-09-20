@@ -63,11 +63,11 @@ export async function ask(
     system: SYSTEM_PROMPT,
     betas,
     ...(FAST_MODE ? { speed: 'fast' as const } : {}),
-    // Thinking stays on at low effort. Disabling it entirely on Opus 5 can make
-    // the model write tool calls into its visible text instead of emitting a
-    // real tool_use block, which would silently break every integration here.
+    // Thinking stays on at medium effort. Disabling it entirely can make the
+    // model write tool calls into its visible text instead of emitting a real
+    // tool_use block, which would silently break every integration here.
     thinking: { type: 'adaptive' as const },
-    output_config: { effort: 'low' as const },
+    output_config: { effort: 'medium' as const },
     mcp_servers: servers.map((s) => ({
       type: 'url' as const,
       name: s.name,

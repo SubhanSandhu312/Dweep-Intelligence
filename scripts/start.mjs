@@ -143,6 +143,6 @@ run('bridge', 'node', ['bridge/server.mjs'], '36', bridgeEnv)
 run('face', process.execPath, ['node_modules/vite/bin/vite.js'], '35', {})
 
 console.log(
-  '\nWhen it says the dev server is ready, open the URL it prints in Chrome,\n' +
+  '\nWhen it says the dev server is ready, open the URL it prints in Edge,\n' +
     'click INITIALISE, and say "Hey Jarvis". Ctrl-C stops everything.\n',
 )

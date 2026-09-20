@@ -18,7 +18,7 @@ listens through the browser's own speech, and everything still works.
 ## Requirements
 
 **In one line:** a Claude Code subscription, plus two free things every computer
-can have — Node.js and Chrome. That's the whole list.
+can have — Node.js and Microsoft Edge (Chrome works too). That's the whole list.
 
 - **Claude Code, installed and logged in** — this is the only account you need.
   Install it with the official method — `npm install -g @anthropic-ai/claude-code`,
@@ -49,7 +49,7 @@ npm install
 npm start          # runs the brain and the face together
 ```
 
-Then open the URL it prints (http://localhost:5173) in **Chrome**, click **INITIALISE**, and say **“Hey Jarvis”**.
+Then open the URL it prints (http://localhost:5173) in **Edge**, click **INITIALISE**, and say **“Hey Jarvis”**.
 
 Prefer two terminals? Run them separately instead:
 
@@ -69,7 +69,7 @@ Terminal 2 — the face:
 npm run dev
 ```
 
-Then open the app in a **real Chrome or Edge window**:
+Then open the app in a **real Edge (or Chrome) window**:
 
 ```bash
 open http://localhost:5173
@@ -108,9 +108,9 @@ WebSocket (plus a few HTTP endpoints) on `ws://localhost:8787`.
 rest. The bridge can. And because it is the Agent SDK, it authenticates off your
 existing Claude Code login: no API key, billed to that same Claude account.
 
-**The model.** `claude-opus-5` at effort `medium` by default. Override with the
+**The model.** `claude-sonnet-5` at effort `medium` by default. Override with the
 `JARVIS_MODEL` and `JARVIS_EFFORT` environment variables. On startup the bridge
-prints its choice, e.g. `[jarvis] model claude-opus-5 · effort medium`.
+prints its choice, e.g. `[jarvis] model claude-sonnet-5 · effort medium`.
 
 ### The voice pipeline
 
@@ -225,7 +225,7 @@ Everything is optional in bridge mode. Frontend settings live in `.env.local`
 | Variable | Default | Effect |
 |---|---|---|
 | `JARVIS_BRIDGE_PORT` | `8787` | Port for the WebSocket + HTTP endpoints |
-| `JARVIS_MODEL` | `claude-opus-5` | Model to run |
+| `JARVIS_MODEL` | `claude-sonnet-5` | Model to run |
 | `JARVIS_EFFORT` | `medium` | Reasoning effort |
 | `JARVIS_ALLOW_WRITES` | off | `1` allows effectful tools (see below) |
 | `JARVIS_ALLOWED_ORIGINS` | local dev | Extra WebSocket origins to accept |

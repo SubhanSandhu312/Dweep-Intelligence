@@ -18,14 +18,21 @@ import { join } from 'node:path'
  *
  * Reaching it is the interesting part.
  *
- * The Claude for Chrome extension already speaks to a local process — that is
- * how Claude Code's own browser tools work. The chain is:
+ * The Claude browser extension already speaks to a local process — that is
+ * how Claude Code's own browser tools work. It is the same extension in Chrome
+ * and in Microsoft Edge, and JARVIS targets Edge. The chain is:
  *
- *   Chrome extension  (fcoeoabgfenejglbffodgkkbkcdhcgfn)
- *        ↕  Chrome Native Messaging: 4-byte little-endian length + JSON
+ *   Edge extension  (fcoeoabgfenejglbffodgkkbkcdhcgfn)
+ *        ↕  Native Messaging: 4-byte little-endian length + JSON
  *   chrome-native-host
- *        ↕  Unix socket: /tmp/claude-mcp-browser-bridge-<user>/<pid>.sock
+ *        ↕  Windows: named pipe  \\.\pipe\claude-mcp-browser-bridge-<user>
+ *           macOS/Linux: Unix socket  /tmp/claude-mcp-browser-bridge-<user>/<pid>.sock
  *   whoever connects  ← this file
+ *
+ * Which browser answers is decided by which one is running the extension's
+ * native host, not by anything here: the host is a child of that browser and
+ * owns the pipe for as long as it lives. With only Edge open, Edge is what
+ * answers.
  *
  * What Claude Code normally does at that last step is detour through
  * `wss://bridge.claudeusercontent.com`, matching the CLI and the extension by
@@ -52,8 +59,14 @@ import { join } from 'node:path'
  * `userInfo().username` rather than $USER, which is unset under launchd — and a
  * bridge started from a login item is exactly the case where a wrong guess
  * would look like the extension being uninstalled.
+ *
+ * Windows has no /tmp to look in: the host publishes a named pipe instead, one
+ * fixed name per user with no pid in it. Looking only under /tmp there reports
+ * an extension that is running perfectly well as not running at all.
  */
-const SOCKET_DIR = `/tmp/claude-mcp-browser-bridge-${userInfo().username}`
+const BRIDGE_NAME = `claude-mcp-browser-bridge-${userInfo().username}`
+const SOCKET_DIR = `/tmp/${BRIDGE_NAME}`
+const PIPE_DIR = String.raw`\\.\pipe` + '\\'
 
 /**
  * How long a single browser action may take.
@@ -71,17 +84,27 @@ const CONNECT_TIMEOUT_MS = 3_000
 /**
  * Find the socket to talk to.
  *
- * The name carries the native host's pid, so it changes every time Chrome
+ * The name carries the native host's pid, so it changes every time the browser
  * restarts and the old file is left behind — picking the wrong one gives a
  * connection that opens successfully and then answers nothing, which is the
  * most confusing failure available. Newest by modification time is the live one.
  *
  * `0.sock` is deliberately deprioritised: it is a symlink some builds create
- * and then fail to update across a Chrome restart, so it is the single most
+ * and then fail to update across a browser restart, so it is the single most
  * likely file here to be pointing at a host that no longer exists. It is still
  * accepted as a last resort, because on some setups it is all there is.
+ *
+ * On Windows there is nothing to choose between. A named pipe disappears with
+ * the process that created it, so if it is listed, its host is alive.
  */
 async function findSocket() {
+  if (process.platform === 'win32') {
+    try {
+      return (await readdir(PIPE_DIR)).includes(BRIDGE_NAME) ? PIPE_DIR + BRIDGE_NAME : null
+    } catch {
+      return null
+    }
+  }
   let names
   try {
     names = await readdir(SOCKET_DIR)
@@ -171,7 +194,7 @@ class ChromeLink {
     if (!path) {
       throw new Error(
         'The Claude browser extension is not running on this machine. ' +
-          'Open Chrome with the Claude extension enabled, then try again.',
+          'Open Microsoft Edge with the Claude extension enabled, then try again.',
       )
     }
     await new Promise((resolve, reject) => {
@@ -188,7 +211,7 @@ class ChromeLink {
         socket.on('data', (chunk) => this.onData(chunk))
         // Both of these mean the same thing to us: whatever we were waiting for
         // is not coming, and the next call must dial again from scratch. The
-        // native host dies with Chrome, so this fires on every browser restart.
+        // native host dies with the browser, so this fires on every restart.
         socket.on('error', (err) => this.reset(err))
         socket.on('close', () => this.reset(new Error('the browser disconnected')))
         resolve()
@@ -237,7 +260,7 @@ class ChromeLink {
    * Run one extension tool. Queued behind whatever is already running.
    *
    * A dropped connection is retried exactly once, because the overwhelmingly
-   * common cause is a socket that went stale while JARVIS was idle — Chrome was
+   * common cause is a socket that went stale while JARVIS was idle — Edge was
    * restarted between two questions — and re-dialling silently is much better
    * than telling the user their browser is unavailable when it is sitting right
    * there. A second failure is real and is reported.
@@ -466,7 +489,7 @@ function forward(name, { needsTab = true } = {}) {
         sent = tab === null ? sent : { ...sent, tabId: tab }
       }
       let reply = await link.call(name, sent)
-      // The tab we remembered has gone — the user closed it, or Chrome was
+      // The tab we remembered has gone — the user closed it, or Edge was
       // restarted under us. Forget it and try once with a fresh one before
       // reporting a browser that is actually working fine.
       if (needsTab && reply?.error && /no tab available/i.test(JSON.stringify(reply.error))) {
@@ -525,7 +548,7 @@ const tabId = z
       'tab JARVIS is already working in is used, opening one if there is none.',
   )
 
-const NAVIGATE_DESCRIPTION = `Open a URL in the user's own Chrome.
+const NAVIGATE_DESCRIPTION = `Open a URL in the user's own Microsoft Edge.
 
 This is their real browser, so every site they are signed in to is already
 signed in — mail, calendar, dashboards, anything behind a login. That is the
@@ -566,7 +589,7 @@ export function chromeServer({ allowWrites }) {
               {
                 type: 'text',
                 text:
-                  'The browser extension is not running. Chrome may be closed, ' +
+                  'The browser extension is not running. Edge may be closed, ' +
                   'or the Claude extension may be disabled.',
               },
             ],
@@ -802,7 +825,7 @@ export function chromeServer({ allowWrites }) {
     name: 'jarvis_chrome',
     version: '1.0.0',
     instructions:
-      "The user's own Chrome, already signed in to everything they use. " +
+      "The user's own Microsoft Edge, already signed in to everything they use. " +
       'Reach for it when the answer is behind a login or has to be seen on a ' +
       'real page. Reading is free; acting on a page is not, so say what you ' +
       'are doing before you do anything that changes something.',
